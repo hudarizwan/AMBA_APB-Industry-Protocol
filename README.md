@@ -265,9 +265,34 @@ f4pga install xc7
 
 The `flow.json` defines the complete synthesis and implementation pipeline for the `XC7Z010-1CLG400C` device.
 
-**flow.json — Build Configuration:**
+**`handshake/flow.json`:**
 
-![flow.json screenshot](SCREENSHOTS/flow.json.png)
+```json
+{
+    "default_part": "XC7Z010-1CLG400C",
+    "values": {
+        "top": "top"
+    },
+    "dependencies": {
+        "sources": [
+            "master.v",
+            "slave.v",
+            "top.v"
+        ],
+        "synth_log": "synth.log",
+        "pack_log": "pack.log"
+    },
+    "XC7Z010-1CLG400C": {
+        "default_target": "bitstream",
+        "dependencies": {
+            "build_dir": "build/zybo",
+            "xdc": [
+                "zybo.xdc"
+            ]
+        }
+    }
+}
+```
 
 The build stages are:
 1. **Synthesis (Yosys):** Reads `master.v`, `slave.v`, `top.v` → produces optimized netlist `top.json`
@@ -279,6 +304,38 @@ The build stages are:
 
 ### Running the Build
 
+**`handshake/Makefile`:**
+
+```makefile
+current_dir := ${CURDIR}
+
+TOP := top
+
+SOURCES := \
+	${current_dir}/master.v \
+	${current_dir}/slave.v \
+	${current_dir}/top.v
+
+ifeq ($(TARGET),arty_100)
+  XDC := ${current_dir}/arty.xdc
+
+else ifeq ($(TARGET),nexys4ddr)
+  XDC := ${current_dir}/nexys4ddr.xdc
+
+else ifeq ($(TARGET),zybo)
+  XDC := ${current_dir}/zybo.xdc
+
+else ifeq ($(TARGET),nexys_video)
+  XDC := ${current_dir}/nexys_video.xdc
+
+else ifeq ($(TARGET),basys3)
+  XDC := ${current_dir}/basys3.xdc
+
+endif
+
+include ${current_dir}/../../common/common.mk
+```
+
 ```bash
 cd handshake/
 
@@ -289,15 +346,34 @@ make TARGET=zybo
 f4pga build --flow flow.json
 ```
 
-**Zybo XDC Constraint File:**
+**`handshake/zybo.xdc` — Pin Constraints:**
 
-![zybo.xdc screenshot](SCREENSHOTS/zybo.xdc.png)
+```tcl
+## Zybo Z7-10
+
+## Switches (Inputs)
+set_property -dict { PACKAGE_PIN G15 IOSTANDARD LVCMOS33 } [get_ports { clk }]
+set_property -dict { PACKAGE_PIN P15 IOSTANDARD LVCMOS33 } [get_ports { rst }]
+set_property -dict { PACKAGE_PIN W13 IOSTANDARD LVCMOS33 } [get_ports { start }]
+set_property -dict { PACKAGE_PIN T16 IOSTANDARD LVCMOS33 } [get_ports { rw }]
+
+## LEDs (Outputs — received data nibble)
+set_property -dict { PACKAGE_PIN R18 IOSTANDARD LVCMOS33 } [get_ports { dataFpga[0] }]
+set_property -dict { PACKAGE_PIN P16 IOSTANDARD LVCMOS33 } [get_ports { dataFpga[1] }]
+set_property -dict { PACKAGE_PIN V16 IOSTANDARD LVCMOS33 } [get_ports { dataFpga[2] }]
+set_property -dict { PACKAGE_PIN Y16 IOSTANDARD LVCMOS33 } [get_ports { dataFpga[3] }]
+
+## RGB LEDs (Status indicators)
+set_property -dict { PACKAGE_PIN L15 IOSTANDARD LVCMOS33 } [get_ports { valid }]
+set_property -dict { PACKAGE_PIN G17 IOSTANDARD LVCMOS33 } [get_ports { ready }]
+
+## Clock timing constraint — 125 MHz (8 ns period)
+create_clock -add -name sys_clk_pin -period 8.00 -waveform {0 4} [get_ports { clk }]
+```
 
 **Generated Bitstream:**
 
-After a successful build, the bitstream is located at `build/zybo/top.bit`.
-
-![Bitstream Generation](SCREENSHOTS/BIT%20STREAM%20SS.png)
+After a successful build, the bitstream is located at `build/zybo/top.bit` and is ready to be programmed directly onto the board.
 
 ### Programming the Zybo Z7-10
 
