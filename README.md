@@ -58,25 +58,38 @@ Key protocol characteristics implemented in this project:
 
 The APB subsystem implements a single-master, dual-slave architecture. The master is the sole initiator of all bus transfers; slaves respond only when selected via `PSELx`.
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                     APB System Interconnect                     │
-│                                                                 │
-│  ┌───────────────────┐      PADDR[8:0], PWDATA, PWRITE,        │
-│  │    APB Master     │ ──── PENABLE, PSEL1, PSEL2 ──────────► │
-│  │   (master.v)      │                                         │
-│  │                   │                                         │
-│  │  IDLE→SETUP→ENABLE│ ◄─── PRDATA, PREADY, PSLVERR ──────── │
-│  └───────────────────┘                                         │
-│                                                                 │
-│         ┌────────────────────┬────────────────────┐            │
-│         │    Slave 1         │    Slave 2         │            │
-│         │   (slave.v)        │   (slave.v)        │            │
-│         │  256-byte SRAM     │  256-byte SRAM     │            │
-│         │  0x000 – 0x0FF     │  0x100 – 0x1FF     │            │
-│         │  PADDR[8]=0        │  PADDR[8]=1        │            │
-│         └────────────────────┴────────────────────┘            │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph MASTER["🧠 APB Master (master.v)"]
+        direction TB
+        FSM["3-State FSM\nIDLE → SETUP → ENABLE"]
+        DEC["Address Decoder\nPADDR[8]=0 → PSEL1\nPADDR[8]=1 → PSEL2"]
+        FSM --- DEC
+    end
+
+    subgraph INTERCONNECT["⚙️ Top Interconnect (top.v)"]
+        MUX["PREADY Combiner\npready = (psel1 & pready1)\n       | (psel2 & pready2)"]
+    end
+
+    subgraph SLAVE1["📦 Slave 1 (slave.v)"]
+        direction TB
+        MEM1["256-Byte SRAM\n0x000 – 0x0FF\nPADDR[8] = 0"]
+        SIG1["PREADY1 · PSLVERR1\nPRDATA1"]
+        MEM1 --- SIG1
+    end
+
+    subgraph SLAVE2["📦 Slave 2 (slave.v)"]
+        direction TB
+        MEM2["256-Byte SRAM\n0x100 – 0x1FF\nPADDR[8] = 1"]
+        SIG2["PREADY2 · PSLVERR2\nPRDATA2"]
+        MEM2 --- SIG2
+    end
+
+    MASTER -->|"PADDR, PWDATA\nPWRITE, PENABLE, PSEL1"| SLAVE1
+    MASTER -->|"PADDR, PWDATA\nPWRITE, PENABLE, PSEL2"| SLAVE2
+    SLAVE1 -->|"PRDATA1, PREADY1\nPSLVERR"| INTERCONNECT
+    SLAVE2 -->|"PRDATA2, PREADY2\nPSLVERR"| INTERCONNECT
+    INTERCONNECT -->|"PREADY, PRDATA\nPSLVERR"| MASTER
 ```
 
 ### Module Breakdown
