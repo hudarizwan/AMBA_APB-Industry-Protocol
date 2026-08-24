@@ -1,0 +1,36 @@
+﻿# Simulation artifacts
+*.vcd
+*.wlf
+*.bak
+
+# ModelSim/Questa work library
+work/
+
+# F4PGA / SymbiFlow build intermediates
+build/zybo/*.eblif
+build/zybo/*.ilang
+build/zybo/*.json
+build/zybo/*.net
+build/zybo/*.fasm
+build/zybo/*.place
+build/zybo/*.route
+build/zybo/*.sdc
+build/zybo/*.rpt
+build/zybo/*.log
+build/zybo/*.ioplace
+build/zybo/top_io.json
+build/zybo/constraints.place
+
+# Keep bitstream
+!build/zybo/top.bit
+
+# ModelSim project files
+*.mpf
+*.cr.mti
+apb_sim
+
+# F4PGA cache
+.f4cache/
+
+# PDF lab files
+*.pdf
